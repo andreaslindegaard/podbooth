@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Online Podcast Studio</title>
+  <title>Online Podcast Studio with Webcam</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -15,6 +15,10 @@
       padding: 10px 20px;
       font-size: 1rem;
     }
+    video {
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+    }
     #waveform {
       width: 100%;
       height: 128px;
@@ -24,7 +28,7 @@
   </style>
 </head>
 <body>
-  <h1>Online Podcast Studio</h1>
+  <h1>Online Podcast Studio with Webcam</h1>
   
   <!-- Recording Controls -->
   <div id="controls">
@@ -32,14 +36,18 @@
     <button id="stopBtn" disabled>Stop Recording</button>
   </div>
 
-  <!-- Audio Playback -->
-  <h3>Playback</h3>
-  <audio id="audioPlayback" controls></audio>
+  <!-- Webcam Preview -->
+  <h3>Webcam Preview</h3>
+  <video id="webcamPreview" autoplay muted width="320" height="240"></video>
+
+  <!-- Recording Playback -->
+  <h3>Recording Playback</h3>
+  <video id="recordingPlayback" controls width="320" height="240"></video>
 
   <!-- Waveform Visualization (optional) -->
   <div id="waveform"></div>
 
-  <!-- Include wavesurfer.js from CDN for waveform visualization -->
+  <!-- Include WaveSurfer.js from CDN for waveform visualization -->
   <script src="https://unpkg.com/wavesurfer.js"></script>
   
   <script>
@@ -49,12 +57,13 @@
 
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const audioPlayback = document.getElementById('audioPlayback');
+    const webcamPreview = document.getElementById('webcamPreview');
+    const recordingPlayback = document.getElementById('recordingPlayback');
     const waveformContainer = document.getElementById('waveform');
 
     // Initialize WaveSurfer (optional)
-    function initWaveSurfer(audioURL) {
-      // Destroy any previous instance
+    function initWaveSurfer(mediaURL) {
+      // Destroy any previous instance of WaveSurfer
       if (wavesurfer) {
         wavesurfer.destroy();
       }
@@ -64,29 +73,38 @@
         progressColor: '#0177a7',
         height: 128
       });
-      wavesurfer.load(audioURL);
+      wavesurfer.load(mediaURL);
     }
 
     startBtn.addEventListener('click', async () => {
       try {
-        // Request microphone access
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Request both audio and video access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        
+        // Show the live webcam preview
+        webcamPreview.srcObject = stream;
+
+        // Initialize MediaRecorder to record the combined stream
         mediaRecorder = new MediaRecorder(stream);
 
-        // Collect the audio data
+        // Gather recorded data
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             recordedChunks.push(event.data);
           }
         };
 
-        // When recording stops, create a Blob and update the playback/audio visualization
+        // When recording stops, create a Blob and update playback and visualization
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
-          const audioURL = URL.createObjectURL(audioBlob);
-          audioPlayback.src = audioURL;
-          initWaveSurfer(audioURL);
-          // Clear the recorded chunks for next recording
+          const recordedBlob = new Blob(recordedChunks, { type: 'video/webm' });
+          const recordedURL = URL.createObjectURL(recordedBlob);
+          recordingPlayback.src = recordedURL;
+          
+          // Optionally, visualize the audio track via WaveSurfer.
+          // Note: WaveSurfer may extract the audio from the video blob.
+          initWaveSurfer(recordedURL);
+          
+          // Clear recorded chunks for the next recording session
           recordedChunks = [];
         };
 
@@ -94,13 +112,13 @@
         startBtn.disabled = true;
         stopBtn.disabled = false;
       } catch (err) {
-        console.error('Error accessing microphone:', err);
-        alert('Microphone access is required for recording.');
+        console.error("Error accessing media devices:", err);
+        alert("Please allow access to your webcam and microphone.");
       }
     });
 
     stopBtn.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
         startBtn.disabled = false;
         stopBtn.disabled = true;
