@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Online Podcast Studio</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      text-align: center;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1rem;
+    }
+    #waveform {
+      width: 100%;
+      height: 128px;
+      background: #f0f0f0;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Online Podcast Studio</h1>
+  
+  <!-- Recording Controls -->
+  <div id="controls">
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+  </div>
+
+  <!-- Audio Playback -->
+  <h3>Playback</h3>
+  <audio id="audioPlayback" controls></audio>
+
+  <!-- Waveform Visualization (optional) -->
+  <div id="waveform"></div>
+
+  <!-- Include wavesurfer.js from CDN for waveform visualization -->
+  <script src="https://unpkg.com/wavesurfer.js"></script>
+  
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    let wavesurfer; // For waveform visualization
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const audioPlayback = document.getElementById('audioPlayback');
+    const waveformContainer = document.getElementById('waveform');
+
+    // Initialize WaveSurfer (optional)
+    function initWaveSurfer(audioURL) {
+      // Destroy any previous instance
+      if (wavesurfer) {
+        wavesurfer.destroy();
+      }
+      wavesurfer = WaveSurfer.create({
+        container: waveformContainer,
+        waveColor: '#a0d8f1',
+        progressColor: '#0177a7',
+        height: 128
+      });
+      wavesurfer.load(audioURL);
+    }
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+
+        // Collect the audio data
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        // When recording stops, create a Blob and update the playback/audio visualization
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+          const audioURL = URL.createObjectURL(audioBlob);
+          audioPlayback.src = audioURL;
+          initWaveSurfer(audioURL);
+          // Clear the recorded chunks for next recording
+          recordedChunks = [];
+        };
+
+        mediaRecorder.start();
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } catch (err) {
+        console.error('Error accessing microphone:', err);
+        alert('Microphone access is required for recording.');
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    });
+  </script>
+</body>
+</html>
